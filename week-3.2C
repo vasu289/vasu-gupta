@@ -1,0 +1,59 @@
+#include "thingProperties.h"
+
+const int pulseTrigger = 7;
+const int pulseEcho = 8;
+const int warningDistance = 15;
+
+void setup() {
+    Serial.begin(9600);
+    delay(1000);
+
+    initProperties();
+    ArduinoCloud.begin(ArduinoIoTPreferredConnection);
+
+    pinMode(pulseTrigger, OUTPUT);
+    pinMode(pulseEcho, INPUT);
+
+    Serial.println("Proximity Monitoring System Online");
+}
+
+void loop() {
+    ArduinoCloud.update();
+    measureProximity();
+    checkWarning();
+    delay(800);
+}
+
+void measureProximity() {
+    digitalWrite(pulseTrigger, LOW);
+    delayMicroseconds(2);
+    digitalWrite(pulseTrigger, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(pulseTrigger, LOW);
+    
+    long signalDuration = pulseIn(pulseEcho, HIGH);
+    detectedDistance = signalDuration * 0.033 / 2;
+
+    Serial.print("Proximity: ");
+    Serial.print(detectedDistance);
+    Serial.println(" cm");
+}
+
+void checkWarning() {
+    if (detectedDistance < warningDistance) {
+        warningActive = true;
+        Serial.println("WARNING: Object Too Close!");
+    } else {
+        warningActive = false;
+    }
+}
+
+void onDetectedDistanceChange() {
+    Serial.print("Updated Proximity: ");
+    Serial.println(detectedDistance);
+}
+
+void onWarningActiveChange() {
+    Serial.print("Warning Status: ");
+    Serial.println(warningActive ? "ACTIVE" : "INACTIVE");
+}
