@@ -1,0 +1,29 @@
+#include <Arduino_LSM6DS3.h>  // Ensure the correct library is installed
+
+void setup() {
+  Serial.begin(115200);
+  while (!Serial);  // Wait for Serial Monitor to be ready
+
+  if (!IMU.begin()) {  // Check if the IMU sensor initializes correctly
+    Serial.println("Failed to initialize IMU!");
+    while (1);  // Halt execution if IMU fails
+  }
+}
+
+void loop() {
+  float x, y, z;
+
+  if (IMU.gyroscopeAvailable()) {  // Check if new gyroscope data is available
+    IMU.readGyroscope(x, y, z);  // Read gyroscope values
+
+    Serial.print(millis());  // Print timestamp
+    Serial.print(",");
+    Serial.print(x, 6);
+    Serial.print(",");
+    Serial.print(y, 6);
+    Serial.print(",");
+    Serial.println(z, 6);
+  }
+
+  delay(100);  // Adjust the sampling rate
+}
