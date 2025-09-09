@@ -1,0 +1,46 @@
+from tkinter import *
+import tkinter.font
+from gpiozero import PWMLED
+
+# --- Hardware setup (PWM-capable GPIO pins) ---
+led_green = PWMLED(18)     # First Green LED on GPIO18
+led_green1 = PWMLED(14)    # Second Green LED on GPIO23
+led_green2 = PWMLED(15)    # Third Green LED on GPIO24
+
+# --- GUI setup ---
+win = Tk()
+win.title("LED Brightness Control")
+myFont = tkinter.font.Font(family='Helvetica', size=12, weight='bold')
+
+# --- Functions to update LED brightness ---
+def update_green(val):
+    brightness = int(val) / 100   # Scale 0-100 ? 0.0-1.0
+    led_green.value = brightness
+
+def update_green1(val):
+    brightness = int(val) / 100
+    led_green1.value = brightness
+
+def update_green2(val):
+    brightness = int(val) / 100
+    led_green2.value = brightness
+
+# --- Sliders for each LED ---
+green_slider = Scale(win, from_=0, to=100, orient=HORIZONTAL, 
+                     label="Green LED Brightness", command=update_green, length=300)
+green_slider.grid(row=0, column=0, padx=20, pady=20)
+
+green1_slider = Scale(win, from_=0, to=100, orient=HORIZONTAL, 
+                      label="Other Green LED Brightness", command=update_green1, length=300)
+green1_slider.grid(row=1, column=0, padx=20, pady=20)
+
+green2_slider = Scale(win, from_=0, to=100, orient=HORIZONTAL, 
+                      label="Other Other Green LED Brightness", command=update_green2, length=300)
+green2_slider.grid(row=2, column=0, padx=20, pady=20)
+
+# --- Exit button ---
+exit_button = Button(win, text="Exit", font=myFont, command=win.destroy)
+exit_button.grid(row=3, column=0, pady=20)
+
+# --- Start GUI ---
+win.mainloop()
