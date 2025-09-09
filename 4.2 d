@@ -1,0 +1,119 @@
+#include <Wire.h>
+#include <BH1750.h>                // BH1750 library
+#include <DHT.h>                   // Adafruit DHT library
+#include <SAMDTimerInterrupt.h>    // SAMD hardware timer library
+
+// ----- Pin / hardware config -----
+#define DHT_PIN       4
+#define DHT_TYPE      DHT22
+#define BUTTON_PIN    2
+#define LED_PIN       7      // use builtin LED (13)
+
+#define TIMER_US      50000UL   // 5 second timer tick (in microseconds)
+#define READ_EVERY    5           // read sensors every 5 seconds (i.e. every 5 ticks)
+ 
+// ----- Globals / objects -----
+DHT dht(DHT_PIN, DHT_TYPE);
+BH1750 lightMeter;
+
+SAMDTimer ITimer(TIMER_TC3);
+
+// volatile flags updated in ISRs
+volatile bool buttonPressed = false;
+volatile bool sensorReadFlag = false;
+volatile uint8_t timerTickCount = 0;
+
+bool ledState = false;
+
+// ----- ISRs -----
+void buttonISR()
+{
+  // keep ISRs tiny: just set a flag
+  buttonPressed = true;
+}
+
+void timerISR()
+{
+  // called every TIMER_US microseconds
+  timerTickCount++;
+  if (timerTickCount >= READ_EVERY)
+  {
+    timerTickCount = 0;
+    sensorReadFlag = true;
+  }
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  while (!Serial) { ; }
+
+  // basic pins
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
+
+  // I2C + sensors
+  Wire.begin();
+  if (!lightMeter.begin()) {
+    Serial.println("BH1750 init failed - check wiring.");
+  } else {
+    Serial.println("BH1750 initialized.");
+  }
+
+  dht.begin();
+  Serial.println("DHT begun.");
+
+  // Start hardware timer (1 second tick). Use attachInterruptInterval for microseconds.
+  if (ITimer.attachInterruptInterval((float)TIMER_US, timerISR)) {
+    Serial.println("SAMD Timer attached (1s tick).");
+  } else {
+    Serial.println("Failed to attach SAMD Timer! Check library/board configuration.");
+  }
+}
+
+void loop()
+{
+  // handle button press (debounce handled by hardware pull-up + tiny ISR)
+  if (buttonPressed)
+  {
+    // clear flag safely
+    noInterrupts();
+    buttonPressed = false;
+    interrupts();
+
+    ledState = !ledState;
+    digitalWrite(LED_PIN, ledState ? HIGH : LOW);
+    Serial.print("Button pressed. LED is now: ");
+    Serial.println(ledState ? "ON" : "OFF");
+  }
+
+  // sensor read requested by timer ISR (handled in main loop)
+  if (sensorReadFlag)
+  {
+    // clear flag
+    noInterrupts();
+    sensorReadFlag = false;
+    interrupts();
+
+    // DHT read (may fail => NAN)
+    float humidity = dht.readHumidity();
+    float tempC = dht.readTemperature();
+
+    // BH1750 read
+    float lux = lightMeter.readLightLevel(); // returns lux as float
+
+    Serial.print("Sensors => ");
+    Serial.print("Temp(C): ");
+    if (isnan(tempC)) Serial.print("N/A"); else Serial.print(tempC, 2);
+    Serial.print(" | Hum(%): ");
+    if (isnan(humidity)) Serial.print("N/A"); else Serial.print(humidity, 2);
+    Serial.print(" | Light(lx): ");
+    if (lux < 0.0) Serial.print("N/A"); else Serial.print(lux, 1);
+    Serial.println();
+  }
+
+  delay(10);
+}
