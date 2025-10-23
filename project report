@@ -1,0 +1,52 @@
+import serial
+import time
+import matplotlib.pyplot as plt
+from collections import deque
+
+# Connect to Arduino (check with: ls /dev/tty*)
+ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
+time.sleep(2)
+
+print("Connected to Arduino Nano 33 IoT")
+
+# Data buffers for plotting
+max_points = 50
+speed_data = deque([0]*max_points, maxlen=max_points)
+distance_data = deque([0]*max_points, maxlen=max_points)
+impact_data = deque([0]*max_points, maxlen=max_points)
+
+plt.ion()
+fig, (ax1, ax2) = plt.subplots(2, 1)
+fig.suptitle("Smart Cricket Live Data")
+
+while True:
+    try:
+        line = ser.readline().decode().strip()
+        if line and "Speed" in line:
+            parts = line.split(',')
+            speed = float(parts[0].split(':')[1])
+            distance = float(parts[1].split(':')[1])
+            impact = int(parts[2].split(':')[1])
+
+            speed_data.append(speed)
+            distance_data.append(distance)
+            impact_data.append(impact)
+
+            ax1.clear()
+            ax1.plot(speed_data, label='Swing Speed (m/s)')
+            ax1.legend(loc='upper left')
+            ax1.set_ylim(0, 200)
+
+            ax2.clear()
+            ax2.plot(distance_data, label='Distance (cm)', color='orange')
+            ax2.legend(loc='upper left')
+            ax2.set_ylim(0, 200)
+
+            plt.pause(0.05)
+            print(f"Speed={speed:.2f} m/s, Distance={distance:.1f} cm, Impact={impact}")
+
+    except KeyboardInterrupt:
+        print("\nStopping...")
+        break
+    except Exception as e:
+        print(f"Error: {e}")
